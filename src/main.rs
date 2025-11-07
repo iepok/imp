@@ -71,65 +71,39 @@ fn handle_install() {
 }
 
 fn handle_push(message: &str) {
+    if let Err(e) = try_push(message) {
+        eprintln!("Error: {}", e);
+    }
+}
+
+fn try_push(message: &str) -> Result<(), String> {
     let target_dir = get_project_dir();
     
+    let run = |args: &[&str]| -> Result<(), String> {
+        Command::new("git")
+            .args(args)
+            .current_dir(&target_dir)
+            .status()
+            .map_err(|e| e.to_string())?
+            .success()
+            .then_some(())
+            .ok_or_else(|| "Command failed".to_string())
+    };
+    
     println!("Adding files...");
-    let add_status = Command::new("git")
-        .args(["add", "."])
-        .current_dir(&target_dir)
-        .status();
+    run(&["add", "."])?;
     
-    match add_status {
-        Ok(status) if status.success() => {
-            println!("✓ Files added");
-        }
-        Ok(status) => {
-            eprintln!("git add failed with status: {}", status);
-            return;
-        }
-        Err(e) => {
-            eprintln!("Failed to run git add: {}", e);
-            return;
-        }
-    }
+    println!("Committing...");
+    run(&["commit", "-m", message])?;
     
-    println!("Committing with message: \"{}\"", message);
-    let commit_status = Command::new("git")
-        .args(["commit", "-m", message])
-        .current_dir(&target_dir)
-        .status();
+    println!("Pushing...");
+    run(&["push"]).or_else(|_| {
+        println!("Setting upstream...");
+        run(&["push", "--set-upstream", "origin", "HEAD"])
+    })?;
     
-    match commit_status {
-        Ok(status) if status.success() => {
-            println!("✓ Committed");
-        }
-        Ok(status) => {
-            eprintln!("git commit failed with status: {}", status);
-            return;
-        }
-        Err(e) => {
-            eprintln!("Failed to run git commit: {}", e);
-            return;
-        }
-    }
-    
-    println!("Pushing to remote...");
-    let push_status = Command::new("git")
-        .args(["push"])
-        .current_dir(&target_dir)
-        .status();
-    
-    match push_status {
-        Ok(status) if status.success() => {
-            println!("✓ Pushed successfully!");
-        }
-        Ok(status) => {
-            eprintln!("git push failed with status: {}", status);
-        }
-        Err(e) => {
-            eprintln!("Failed to run git push: {}", e);
-        }
-    }
+    println!("✓ Success!");
+    Ok(())
 }
 
 fn main() {
