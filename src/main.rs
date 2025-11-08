@@ -115,3 +115,4 @@ fn main() {
         Commands::Commit { message } => handle_push(&message),
     }
 }
+
