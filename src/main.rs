@@ -1,5 +1,13 @@
-use std::process::Command;
 use clap::{Parser, Subcommand};
+use std::env;
+use rustyline::error::ReadlineError;
+use rustyline::DefaultEditor;
+use colored::Colorize;
+
+mod meta;
+mod app;
+use meta::MetaCommands;
+use app::AppCommands;
 
 #[derive(Parser, Debug)]
 #[command(name = "imp", about = "Simple CLI tool")]
@@ -10,109 +18,115 @@ struct Args {
 
 #[derive(Subcommand, Debug)]
 enum Commands {
-    /// Open the imp source in nvim
-    Edit,
-    /// Install imp using cargo
-    Install,
-    /// Git add, commit, and push with a message
-    Commit {
-        /// Commit message
-        message: String,
-    },
-}
-
-fn get_project_dir() -> String {
-    let home = std::env::var("HOME").unwrap_or_else(|_| ".".to_string());
-    format!("{}/projects/imp", home)
-}
-
-fn handle_edit() {
-    let target_dir = get_project_dir();
+    #[command(flatten)]
+    Meta(MetaCommands),
     
-    let status = Command::new("nvim")
-        .arg("src/main.rs")
-        .current_dir(&target_dir)
-        .status();
-    
-    match status {
-        Ok(exit_status) => {
-            if !exit_status.success() {
-                eprintln!("nvim exited with status: {}", exit_status);
-            }
-        }
-        Err(e) => {
-            eprintln!("Failed to run nvim: {}", e);
-        }
-    }
-}
-
-fn handle_install() {
-    let target_dir = get_project_dir();
-    
-    println!("Installing imp from {}...", target_dir);
-    
-    let status = Command::new("cargo")
-        .args(["install", "--path", "."])
-        .current_dir(&target_dir)
-        .status();
-    
-    match status {
-        Ok(exit_status) => {
-            if exit_status.success() {
-                println!("✓ Installation complete!");
-            } else {
-                eprintln!("Installation failed with status: {}", exit_status);
-            }
-        }
-        Err(e) => {
-            eprintln!("Failed to run cargo: {}", e);
-        }
-    }
-}
-
-fn handle_push(message: &str) {
-    if let Err(e) = try_push(message) {
-        eprintln!("Error: {}", e);
-    }
-}
-
-fn try_push(message: &str) -> Result<(), String> {
-    let target_dir = get_project_dir();
-    
-    let run = |args: &[&str]| -> Result<(), String> {
-        Command::new("git")
-            .args(args)
-            .current_dir(&target_dir)
-            .status()
-            .map_err(|e| e.to_string())?
-            .success()
-            .then_some(())
-            .ok_or_else(|| "Command failed".to_string())
-    };
-    
-    println!("Adding files...");
-    run(&["add", "."])?;
-    
-    println!("Committing...");
-    run(&["commit", "-m", message])?;
-    
-    println!("Pushing...");
-    run(&["push"]).or_else(|_| {
-        println!("Setting upstream...");
-        run(&["push", "--set-upstream", "origin", "HEAD"])
-    })?;
-    
-    println!("✓ Success!");
-    Ok(())
+    #[command(flatten)]
+    App(AppCommands),
 }
 
 fn main() {
-    let args = Args::parse();
+    let args: Vec<String> = env::args().collect();
     
-    match args.command {
-        Commands::Edit => handle_edit(),
-        Commands::Install => handle_install(),
-        Commands::Commit { message } => handle_push(&message),
+    // If no args, enter interactive mode
+    if args.len() == 1 {
+        interactive_mode();
+        return;
+    }
+    
+    // Normal command mode
+    process_command(args);
+}
+
+fn interactive_mode() {
+    let mut rl = DefaultEditor::new().unwrap();
+    
+    println!("{}", "Interactive mode - type your commands (Ctrl+C or Ctrl+D to exit)".bright_blue());
+    
+    loop {
+        let prompt = format!("{} ", "imp>".bright_green().bold());
+        let readline = rl.readline(&prompt);
+        
+        match readline {
+            Ok(line) => {
+                let trimmed = line.trim();
+                
+                if trimmed.is_empty() {
+                    continue;
+                }
+                
+                // Add to history
+                let _ = rl.add_history_entry(trimmed);
+                
+                // Build args as if typed on command line
+                let mut full_args = vec!["imp".to_string()];
+                full_args.extend(trimmed.split_whitespace().map(String::from));
+                
+                // Process the command
+                process_command(full_args);
+            }
+            Err(ReadlineError::Interrupted) => {
+                println!("Exiting...");
+                break;
+            }
+            Err(ReadlineError::Eof) => {
+                println!("Exiting...");
+                break;
+            }
+            Err(err) => {
+                eprintln!("Error: {:?}", err);
+                break;
+            }
+        }
     }
 }
 
+fn process_command(args: Vec<String>) {
+    // Try to parse with clap first
+    match Args::try_parse_from(&args) {
+        Ok(parsed_args) => {
+            // Known command matched
+            match parsed_args.command {
+                Commands::Meta(cmd) => meta::handle_meta(cmd),
+                Commands::App(cmd) => app::handle_app(cmd),
+            }
+        }
+        Err(err) => {
+            // Check if it's an unknown subcommand error
+            if err.kind() == clap::error::ErrorKind::InvalidSubcommand {
+                // Handle as custom log command
+                if args.len() > 1 {
+                    match handle_log_command(&args[1..]) {
+                        Ok(_) => {},
+                        Err(_) => {
+                            // Show the original clap error
+                            eprintln!("{}", err);
+                        }
+                    }
+                } else {
+                    eprintln!("{}", err);
+                }
+            } else {
+                // Other errors (like --help, invalid args) - let clap handle them
+                eprintln!("{}", err);
+            }
+        }
+    }
+}
+
+fn handle_log_command(args: &[String]) -> Result<(), ()> {
+    if args.is_empty() {
+        return Err(());
+    }
+    
+    let content = args.join(" ");
+    
+    // Apply your space-check logic
+    if !content.contains(' ') {
+        return Err(());
+    }
+    
+    println!("{} {}", "Logging:".bright_green().bold(), content.cyan());
+    
+    Ok(())
+}
