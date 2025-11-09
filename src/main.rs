@@ -24,18 +24,13 @@ enum Commands {
     #[command(flatten)]
     App(AppCommands),
 }
-
 fn main() {
-    let args: Vec<String> = env::args().collect();
-    
-    // If no args, enter interactive mode
+    let args: Vec<_> = env::args().collect();
     if args.len() == 1 {
         interactive_mode();
-        return;
+    } else {
+        process_command(args);
     }
-    
-    // Normal command mode
-    process_command(args);
 }
 
 fn interactive_mode() {
@@ -50,66 +45,40 @@ fn interactive_mode() {
         match readline {
             Ok(line) => {
                 let trimmed = line.trim();
-                
                 if trimmed.is_empty() {
                     continue;
                 }
-                
-                // Add to history
-                let _ = rl.add_history_entry(trimmed);
+                rl.add_history_entry(trimmed).ok();
                 
                 // Build args as if typed on command line
-                let mut full_args = vec!["imp".to_string()];
+                let mut full_args = vec!["imp".into()];
                 full_args.extend(trimmed.split_whitespace().map(String::from));
-                
-                // Process the command
                 process_command(full_args);
             }
-            Err(ReadlineError::Interrupted) => {
-                println!("Exiting...");
-                break;
-            }
-            Err(ReadlineError::Eof) => {
-                println!("Exiting...");
-                break;
+            Err(ReadlineError::Interrupted | ReadlineError::Eof) => {
+                break println!("Exiting...");
             }
             Err(err) => {
-                eprintln!("Error: {:?}", err);
-                break;
+                break eprintln!("Error: {:?}", err);
             }
         }
     }
 }
 
 fn process_command(args: Vec<String>) {
-    // Try to parse with clap first
     match Args::try_parse_from(&args) {
-        Ok(parsed_args) => {
-            // Known command matched
-            match parsed_args.command {
-                Commands::Meta(cmd) => meta::handle_meta(cmd),
-                Commands::App(cmd) => app::handle_app(cmd),
-            }
+        Ok(parsed_args) => match parsed_args.command {
+            Commands::Meta(cmd) => meta::handle_meta(cmd),
+            Commands::App(cmd) => app::handle_app(cmd),
         }
         Err(err) => {
             // Check if it's an unknown subcommand error
-            if err.kind() == clap::error::ErrorKind::InvalidSubcommand {
-                // Handle as custom log command
-                if args.len() > 1 {
-                    match handle_log_command(&args[1..]) {
-                        Ok(_) => {},
-                        Err(_) => {
-                            // Show the original clap error
-                            eprintln!("{}", err);
-                        }
-                    }
-                } else {
-                    eprintln!("{}", err);
+            if err.kind() == clap::error::ErrorKind::InvalidSubcommand && args.len() > 1 {
+                if handle_log_command(&args[1..]).is_ok() {
+                    return;
                 }
-            } else {
-                // Other errors (like --help, invalid args) - let clap handle them
-                eprintln!("{}", err);
             }
+            err.exit();
         }
     }
 }
@@ -120,13 +89,10 @@ fn handle_log_command(args: &[String]) -> Result<(), ()> {
     }
     
     let content = args.join(" ");
-    
-    // Apply your space-check logic
     if !content.contains(' ') {
         return Err(());
     }
     
     println!("{} {}", "Logging:".bright_green().bold(), content.cyan());
-    
     Ok(())
 }
