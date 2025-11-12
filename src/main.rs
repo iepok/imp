@@ -1,13 +1,12 @@
-use clap::{Parser, Subcommand};
-use std::env;
-use rustyline::error::ReadlineError;
-use rustyline::DefaultEditor;
-use colored::Colorize;
-
 mod meta;
 mod app;
+use std::env;
+
+use clap::{Parser, Subcommand, command};
+use colored::Colorize;
 use meta::MetaCommands;
 use app::AppCommands;
+use rustyline::{DefaultEditor, error::ReadlineError};
 
 #[derive(Parser, Debug)]
 #[command(name = "imp", about = "Simple CLI tool")]
@@ -24,6 +23,7 @@ enum Commands {
     #[command(flatten)]
     App(AppCommands),
 }
+
 fn main() {
     let args: Vec<_> = env::args().collect();
     if args.len() == 1 {
