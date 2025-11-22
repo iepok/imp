@@ -1,11 +1,8 @@
-mod meta;
-mod app;
 use std::env;
-
-use clap::{Parser, Subcommand, command};
+use std::fs;
+use std::io::{BufRead, BufReader, Write};
+use clap::{Parser, Subcommand};
 use colored::Colorize;
-use meta::MetaCommands;
-use app::AppCommands;
 use rustyline::{DefaultEditor, error::ReadlineError};
 
 #[derive(Parser, Debug)]
@@ -17,11 +14,20 @@ struct Args {
 
 #[derive(Subcommand, Debug)]
 enum Commands {
-    #[command(flatten)]
-    Meta(MetaCommands),
+    /// Make a new plan
+    Plan {
+        #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
+        goal: Vec<String>,
+    },
     
-    #[command(flatten)]
-    App(AppCommands),
+    /// Analyze your implementations
+    Analyze,
+    
+    /// View your history  
+    View,
+    
+    /// Uninstall imp and remove it from path
+    Uninstall,
 }
 
 fn main() {
@@ -50,7 +56,6 @@ fn interactive_mode() {
                 }
                 rl.add_history_entry(trimmed).ok();
                 
-                // Build args as if typed on command line
                 let mut full_args = vec!["imp".into()];
                 full_args.extend(trimmed.split_whitespace().map(String::from));
                 process_command(full_args);
@@ -67,12 +72,8 @@ fn interactive_mode() {
 
 fn process_command(args: Vec<String>) {
     match Args::try_parse_from(&args) {
-        Ok(parsed_args) => match parsed_args.command {
-            Commands::Meta(cmd) => meta::handle_meta(cmd),
-            Commands::App(cmd) => app::handle_app(cmd),
-        }
+        Ok(parsed_args) => handle_command(parsed_args.command),
         Err(err) => {
-            // Check if it's an unknown subcommand error
             if err.kind() == clap::error::ErrorKind::InvalidSubcommand && args.len() > 1 {
                 if handle_log_command(&args[1..]).is_ok() {
                     return;
@@ -80,6 +81,21 @@ fn process_command(args: Vec<String>) {
             }
             err.exit();
         }
+    }
+}
+
+fn handle_command(cmd: Commands) {
+    match cmd {
+        Commands::Plan { goal } => {
+            println!("Creating plan: {}", goal.join(" "));
+        }
+        Commands::Analyze => {
+            println!("Analyzing...");
+        }
+        Commands::View => {
+            println!("Viewing history...");
+        }
+        Commands::Uninstall => handle_uninstall(),
     }
 }
 
@@ -95,4 +111,39 @@ fn handle_log_command(args: &[String]) -> Result<(), ()> {
     
     println!("{} {}", "Logging:".bright_green().bold(), content.cyan());
     Ok(())
+}
+
+fn handle_uninstall() {
+    let home = env::var("HOME").unwrap_or_else(|_| ".".to_string());
+    let imp_path = format!("{}/.local/bin/imp", home);
+    
+    if let Err(e) = fs::remove_file(&imp_path) {
+        eprintln!("Failed to remove imp binary: {}", e);
+    } else {
+        println!("Removed {}", imp_path);
+    }
+    
+    remove_path_from_file(&format!("{}/.bashrc", home));
+    remove_path_from_file(&format!("{}/.zshrc", home));
+    
+    println!("✅ imp uninstalled");
+}
+
+fn remove_path_from_file(file_path: &str) {
+    let Ok(file) = fs::File::open(file_path) else {
+        return;
+    };
+    
+    let reader = BufReader::new(file);
+    let lines: Vec<String> = reader
+        .lines()
+        .filter_map(|line| line.ok())
+        .filter(|line| !line.contains(".local/bin") || !line.contains("imp"))
+        .collect();
+    
+    if let Ok(mut file) = fs::File::create(file_path) {
+        for line in lines {
+            let _ = writeln!(file, "{}", line);
+        }
+    }
 }
