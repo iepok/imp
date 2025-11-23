@@ -1,12 +1,13 @@
 use std::env;
 use std::fs;
 use std::io::{BufRead, BufReader, Write};
+use clap::error::ErrorKind;
 use clap::{Parser, Subcommand};
 use colored::Colorize;
 use rustyline::{DefaultEditor, error::ReadlineError};
 
 #[derive(Parser, Debug)]
-#[command(name = "imp", about = "Simple CLI tool")]
+#[command(name = "imp", about = "Simple CLI tool", version)]
 struct Args {
     #[command(subcommand)]
     command: Commands,
@@ -28,6 +29,9 @@ enum Commands {
     
     /// Uninstall imp and remove it from path
     Uninstall,
+
+    /// Update imp
+    Update,
 }
 
 fn main() {
@@ -74,7 +78,7 @@ fn process_command(args: Vec<String>) {
     match Args::try_parse_from(&args) {
         Ok(parsed_args) => handle_command(parsed_args.command),
         Err(err) => {
-            if err.kind() == clap::error::ErrorKind::InvalidSubcommand && args.len() > 1 {
+            if err.kind() == ErrorKind::InvalidSubcommand && args.len() > 1 {
                 if handle_log_command(&args[1..]).is_ok() {
                     return;
                 }
@@ -96,6 +100,18 @@ fn handle_command(cmd: Commands) {
             println!("Viewing history...");
         }
         Commands::Uninstall => handle_uninstall(),
+        Commands::Update => {
+            println!("Updating imp...");
+            let status = Command::new("sh")
+                .arg("-c")
+                .arg("curl -fsSL https://api.iepok.com/imp/install | sh")
+                .status();
+            
+            match status {
+                Ok(s) if s.success() => println!("✅ Updated!"),
+                _ => eprintln!("Update failed"),
+            }
+        }
     }
 }
 
@@ -147,3 +163,4 @@ fn remove_path_from_file(file_path: &str) {
         }
     }
 }
+
