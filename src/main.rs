@@ -1,6 +1,7 @@
 use std::env;
 use std::fs;
 use std::io::{BufRead, BufReader, Write};
+use std::process::Command;
 use clap::error::ErrorKind;
 use clap::{Parser, Subcommand};
 use colored::Colorize;
