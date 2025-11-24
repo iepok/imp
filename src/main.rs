@@ -131,6 +131,40 @@ fn handle_log_command(args: &[String]) -> Result<(), ()> {
 }
 
 fn handle_uninstall() {
+    if cfg!(windows) {
+        handle_uninstall_windows();
+    } else {
+        handle_uninstall_unix();
+    }
+}
+
+fn handle_uninstall_windows() {
+    let local_app_data = env::var("LOCALAPPDATA").unwrap_or_else(|_| ".".to_string());
+    let imp_dir = format!(r"{}\imp", local_app_data);
+    let imp_path = format!(r"{}\imp.exe", imp_dir);
+    
+    // Remove binary
+    if let Err(e) = fs::remove_file(&imp_path) {
+        eprintln!("Failed to remove imp binary: {}", e);
+    } else {
+        println!("Removed {}", imp_path);
+    }
+    
+    // Remove directory
+    let _ = fs::remove_dir(&imp_dir);
+    
+    // Remove from PATH
+    if let Ok(user_path) = env::var("PATH") {
+        if user_path.contains(&imp_dir) {
+            println!("Run this in PowerShell to remove from PATH:");
+            println!(r#"$p = [Environment]::GetEnvironmentVariable("Path", "User"); $p = ($p -split ';' | Where-Object {{ $_ -ne '{}' }}) -join ';'; [Environment]::SetEnvironmentVariable("Path", $p, "User")"#, imp_dir);
+        }
+    }
+    
+    println!("✅ imp uninstalled");
+}
+
+fn handle_uninstall_unix() {
     let home = env::var("HOME").unwrap_or_else(|_| ".".to_string());
     let imp_path = format!("{}/.local/bin/imp", home);
     
