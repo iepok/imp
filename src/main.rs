@@ -142,25 +142,37 @@ fn handle_uninstall_windows() {
     let local_app_data = env::var("LOCALAPPDATA").unwrap_or_else(|_| ".".to_string());
     let imp_dir = format!(r"{}\imp", local_app_data);
     let imp_path = format!(r"{}\imp.exe", imp_dir);
-    
+
     // Remove binary
     if let Err(e) = fs::remove_file(&imp_path) {
         eprintln!("Failed to remove imp binary: {}", e);
     } else {
         println!("Removed {}", imp_path);
     }
-    
+
     // Remove directory
     let _ = fs::remove_dir(&imp_dir);
-    
-    // Remove from PATH
-    if let Ok(user_path) = env::var("PATH") {
-        if user_path.contains(&imp_dir) {
-            println!("Run this in PowerShell to remove from PATH:");
-            println!(r#"$p = [Environment]::GetEnvironmentVariable("Path", "User"); $p = ($p -split ';' | Where-Object {{ $_ -ne '{}' }}) -join ';'; [Environment]::SetEnvironmentVariable("Path", $p, "User")"#, imp_dir);
-        }
+
+    // Remove from PATH using PowerShell
+    let ps_script = format!(
+        r#"
+        $p = [Environment]::GetEnvironmentVariable('Path','User')
+        $new = ($p -split ';' | Where-Object {{ $_ -ne '{}' }}) -join ';'
+        [Environment]::SetEnvironmentVariable('Path',$new,'User')
+        "#,
+        imp_dir
+    );
+
+    let status = Command::new("powershell")
+        .args(&["-NoProfile", "-Command", &ps_script])
+        .status();
+
+    match status {
+        Ok(s) if s.success() => println!("Removed {} from PATH", imp_dir),
+        Ok(_) => eprintln!("PowerShell command failed to update PATH"),
+        Err(e) => eprintln!("Failed to run PowerShell: {}", e),
     }
-    
+
     println!("✅ imp uninstalled");
 }
 
