@@ -122,25 +122,27 @@ fn handle_log_command(args: &[String]) -> Result<(), ()> {
 fn handle_update() {
     println!("Updating imp...");
 
-    let status = if cfg!(windows) {
+    if cfg!(windows) {
         // Windows: use PowerShell with irm + iex
-        Command::new("powershell")
+        let _ = Command::new("powershell")
             .arg("-Command")
             .arg("irm https://api.iepok.com/imp/install.ps1 | iex")
-            .status()
+            .spawn();
+        std::process::exit(0);
     } else {
         // Linux / macOS / *nix
-        Command::new("sh")
+        let status = Command::new("sh")
             .arg("-c")
             .arg("curl -fsSL https://api.iepok.com/imp/install | sh")
-            .status()
+            .status();
+        
+        match status {
+            Ok(exit) if exit.success() => println!("✅ Updated!"),
+            Ok(exit) => eprintln!("❌ Update failed with exit code: {:?}", exit.code()),
+            Err(e) => eprintln!("❌ Failed to start updater: {}", e),
+        }
     };
 
-    match status {
-        Ok(exit) if exit.success() => println!("✅ Updated!"),
-        Ok(exit) => eprintln!("❌ Update failed with exit code: {:?}", exit.code()),
-        Err(e) => eprintln!("❌ Failed to start updater: {}", e),
-    }
 }
 
 fn handle_uninstall() {
