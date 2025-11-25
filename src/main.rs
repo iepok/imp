@@ -28,11 +28,11 @@ enum Commands {
     /// View your history  
     View,
     
-    /// Uninstall imp and remove it from path
-    Uninstall,
-
     /// Update imp
     Update,
+    
+    /// Uninstall imp and remove it from path
+    Uninstall,
 }
 
 fn main() {
@@ -100,19 +100,8 @@ fn handle_command(cmd: Commands) {
         Commands::View => {
             println!("Viewing history...");
         }
+        Commands::Update => handle_update(),
         Commands::Uninstall => handle_uninstall(),
-        Commands::Update => {
-            println!("Updating imp...");
-            let status = Command::new("sh")
-                .arg("-c")
-                .arg("curl -fsSL https://api.iepok.com/imp/install | sh")
-                .status();
-            
-            match status {
-                Ok(s) if s.success() => println!("✅ Updated!"),
-                _ => eprintln!("Update failed"),
-            }
-        }
     }
 }
 
@@ -128,6 +117,30 @@ fn handle_log_command(args: &[String]) -> Result<(), ()> {
     
     println!("{} {}", "Logging:".bright_green().bold(), content.cyan());
     Ok(())
+}
+
+fn handle_update() {
+    println!("Updating imp...");
+
+    let status = if cfg!(windows) {
+        // Windows: use PowerShell with irm + iex
+        Command::new("powershell")
+            .arg("-Command")
+            .arg("irm https://api.iepok.com/imp/install.ps1 | iex")
+            .status()
+    } else {
+        // Linux / macOS / *nix
+        Command::new("sh")
+            .arg("-c")
+            .arg("curl -fsSL https://api.iepok.com/imp/install | sh")
+            .status()
+    };
+
+    match status {
+        Ok(exit) if exit.success() => println!("✅ Updated!"),
+        Ok(exit) => eprintln!("❌ Update failed with exit code: {:?}", exit.code()),
+        Err(e) => eprintln!("❌ Failed to start updater: {}", e),
+    }
 }
 
 fn handle_uninstall() {
