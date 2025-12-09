@@ -79,7 +79,7 @@ async fn main() {
             let result = match parsed_args.command {
                 Commands::Login => login_command().await,
                 Commands::Logout { all } => logout_command(all).await,
-                Commands::Remove { device_id } => remove_passkey_command(),
+                Commands::Remove { device_id } => remove_passkey_command(&device_id),
                 Commands::Devices => devices_command(),
                 Commands::Status => Ok(()),
                 Commands::Plan { goal } => plan_command(goal).await,
