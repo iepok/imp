@@ -1,11 +1,28 @@
 use colored::Colorize;
+use anyhow::Result;
+use crate::auth::token_manager;
 
-pub fn log_command(args: &[String]) -> Result<(), ()> {
+pub async fn log_command(args: &[String]) -> Result<()> {
     if !args[0].contains(' ') {
-        return Err(());
+        anyhow::bail!("Invalid log command");
     }
-    
+
+    let token = token_manager::get_valid_token().await?;
+
     println!("{} {}", "Logging:".bright_green().bold(), args[0].cyan());
+
+    let client = reqwest::Client::new();
+    let response = client
+        .post("https://api.iepok.com/log")
+        .bearer_auth(token)
+        .json(&serde_json::json!({
+            "text": args[0]
+        }))
+        .send()
+        .await?;
+
+    let _result = response.text().await?;
+
     Ok(())
 }
 

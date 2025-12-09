@@ -82,9 +82,9 @@ async fn main() {
                 Commands::Remove { device_id } => remove_passkey_command(),
                 Commands::Devices => devices_command(),
                 Commands::Status => Ok(()),
-                Commands::Plan { goal } => plan_command(goal),
+                Commands::Plan { goal } => plan_command(goal).await,
                 Commands::Analyze => analyze_command(),
-                Commands::View => view_command(),
+                Commands::View => view_command().await,
                 Commands::Update => update_command(),
                 Commands::Uninstall => uninstall_command(),
             };
@@ -94,10 +94,10 @@ async fn main() {
             }
         }
         Err(err) => {
-            if err.kind() == ErrorKind::InvalidSubcommand && args.len() > 1 {
-                if log_command(&args[1..]).is_ok() {
-                    return;
-                }
+            if err.kind() == ErrorKind::InvalidSubcommand
+              && args.len() > 1
+              && log_command(&args[1..]).await.is_ok() {
+                return;
             }
             err.exit();
         }
