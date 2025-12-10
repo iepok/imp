@@ -27,6 +27,8 @@ struct ViewResponse {
 
 pub async fn view_command() -> Result<()> {
     let token = token_manager::get_valid_token().await?;
+    
+    println!("before");
 
     let client = reqwest::Client::new();
     let response = client
@@ -34,6 +36,9 @@ pub async fn view_command() -> Result<()> {
         .bearer_auth(token)
         .send()
         .await?;
+
+    println!("after");
+    println!("{}", response.json().await?);
 
     let view_data: ViewResponse = response.json().await?;
 
