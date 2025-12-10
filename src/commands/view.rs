@@ -3,6 +3,7 @@ use colored::Colorize;
 use crate::auth::token_manager;
 use serde::Deserialize;
 use chrono::{self, DateTime, Utc};
+use uuid::Uuid;
 
 #[derive(Deserialize)]
 struct LogEntry {
