@@ -79,7 +79,11 @@ pub async fn refresh_tokens(refresh_token: &str) -> Result<Tokens> {
         .auth_parameters("REFRESH_TOKEN", refresh_token)
         .send()
         .await
-        .context("Failed to refresh tokens")?;
+        .context("Failed to refresh tokens")
+        .map_err(|e| {
+            println!("Cognito error: {:?}", e);
+            e
+        })?;
 
     let auth_result = response
         .authentication_result()

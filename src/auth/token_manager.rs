@@ -8,13 +8,7 @@ pub async fn validate_and_refresh() -> Result<String> {
         return Ok(tokens.access_token);
     }
 
-    tokens = match auth::refresh_tokens(&tokens.refresh_token).await {
-        Ok(t) => t,
-        Err(e) => {
-            eprintln!("Failed to refresh tokens: {}", e);
-            bail!("Session expired. Please login again with: imp login")
-        },
-    };
+    tokens = auth::refresh_tokens(&tokens.refresh_token).await?;
 
     keyring::save_tokens(&tokens)?;
 
