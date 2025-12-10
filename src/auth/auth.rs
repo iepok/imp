@@ -12,7 +12,6 @@ pub async fn send_otp(email: &str) -> Result<String> {
         .region(REGION)
         .load()
         .await;
-    
     let client = Client::new(&config);
 
     let response = client
@@ -69,7 +68,10 @@ pub async fn verify_otp(
 }
 
 pub async fn refresh_tokens(refresh_token: &str) -> Result<Tokens> {
-    let config = aws_config::load_defaults(BehaviorVersion::latest()).await;
+    let config = defaults(BehaviorVersion::latest())
+        .region(REGION)
+        .load()
+        .await;
     let client = Client::new(&config);
 
     let response = client
@@ -79,11 +81,7 @@ pub async fn refresh_tokens(refresh_token: &str) -> Result<Tokens> {
         .auth_parameters("REFRESH_TOKEN", refresh_token)
         .send()
         .await
-        .context("Failed to refresh tokens")
-        .map_err(|e| {
-            println!("Cognito error: {:?}", e);
-            e
-        })?;
+        .context("Failed to refresh tokens")?;
 
     let auth_result = response
         .authentication_result()
