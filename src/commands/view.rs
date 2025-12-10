@@ -6,12 +6,14 @@ use chrono::{self, DateTime, Utc};
 
 #[derive(Deserialize)]
 struct LogEntry {
+    id: Uuid,
     text: String,
     created_at: DateTime<Utc>,
 }
 
 #[derive(Deserialize)]
 struct PlanEntry {
+    id: Uuid,
     text: String,
     created_at: DateTime<Utc>,
 }
