@@ -10,7 +10,10 @@ pub async fn validate_and_refresh() -> Result<String> {
 
     tokens = match auth::refresh_tokens(&tokens.refresh_token).await {
         Ok(t) => t,
-        Err(_) => bail!("Failed to refresh tokens"),
+        Err(e) => {
+            eprintln!("Failed to refresh tokens: {}", e);
+            bail!("Session expired. Please login again with: imp login")
+        },
     };
 
     keyring::save_tokens(&tokens)?;
@@ -25,7 +28,7 @@ pub async fn validate_and_refresh() -> Result<String> {
         }
     }
 
-    bail!("Token validation failed")
+    bail!("Token validation failed. Please login again with: imp login")
 }
 
 pub async fn get_valid_token() -> Result<String> {
