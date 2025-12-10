@@ -1,4 +1,4 @@
-use aws_config::{BehaviorVersion, defaults};
+use aws_config::{BehaviorVersion, Region, defaults};
 use aws_sdk_cognitoidentityprovider::{Client, types::{AuthFlowType, ChallengeNameType}};
 use crate::auth::types::Tokens;
 use anyhow::{Context, Result};
@@ -9,7 +9,7 @@ pub const CLIENT_ID: &str = "6tlohqsfgoqiehi7q6027a3rl3";
 
 pub async fn send_otp(email: &str) -> Result<String> {
     let config = defaults(BehaviorVersion::latest())
-        .region(REGION)
+        .region(Region::new(REGION))
         .load()
         .await;
     let client = Client::new(&config);
@@ -37,8 +37,8 @@ pub async fn verify_otp(
     code: &str,
     session: &str,
 ) -> Result<Tokens> {
-    let config = aws_config::defaults(aws_config::BehaviorVersion::latest())
-        .region(aws_config::Region::new(REGION))
+    let config = defaults(BehaviorVersion::latest())
+        .region(Region::new(REGION))
         .load()
         .await;
     let client = Client::new(&config);
@@ -69,7 +69,7 @@ pub async fn verify_otp(
 
 pub async fn refresh_tokens(refresh_token: &str) -> Result<Tokens> {
     let config = defaults(BehaviorVersion::latest())
-        .region(REGION)
+        .region(Region::new(REGION))
         .load()
         .await;
     let client = Client::new(&config);
@@ -98,7 +98,7 @@ pub async fn refresh_tokens(refresh_token: &str) -> Result<Tokens> {
 
 pub async fn global_sign_out(access_token: &str) -> Result<()> {
     let config = defaults(BehaviorVersion::latest())
-        .region(REGION)
+        .region(Region::new(REGION))
         .load()
         .await;
     let client = Client::new(&config);
