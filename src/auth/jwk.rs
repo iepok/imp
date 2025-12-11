@@ -19,7 +19,15 @@ struct JwkSet {
     keys: Vec<Jwk>,
 }
 
-const JWKS_URL: &str = "https://auth.iepok.com/.well-known/jwks.json";
+const COGNITO_REGION: &str = "us-east-1";
+const COGNITO_USER_POOL_ID: &str = "us-east-1_DAvkrVxUh";
+
+fn get_jwks_url() -> String {
+    format!(
+        "https://cognito-idp.{}.amazonaws.com/{}/.well-known/jwks.json",
+        COGNITO_REGION, COGNITO_USER_POOL_ID
+    )
+}
 
 fn jwk_cache_path() -> PathBuf {
     dirs::config_dir()
@@ -29,7 +37,7 @@ fn jwk_cache_path() -> PathBuf {
 }
 
 pub async fn fetch_jwks() -> Result<String> {
-    let response = reqwest::get(JWKS_URL).await.context("Failed to fetch JWKs")?;
+    let response = reqwest::get(&get_jwks_url()).await.context("Failed to fetch JWKs")?;
     let jwks = response.text().await.context("Failed to read JWKs response")?;
 
     let cache_path = jwk_cache_path();

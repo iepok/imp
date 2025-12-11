@@ -46,12 +46,6 @@ jobs:
         with:
           targets: ${{ matrix.target }}
 
-      - name: Cache cargo
-        uses: Swatinem/rust-cache@v2
-        with:
-          shared-key: ${{ matrix.target }}
-
-
       - name: Install cross-compilation tools
         if: matrix.cross == true
         run: |

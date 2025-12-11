@@ -79,7 +79,7 @@ async fn main() {
                 Commands::Plan { goal } => plan_command(goal).await,
                 Commands::Analyze => analyze_command(),
                 Commands::View => view_command().await,
-                Commands::Update => update_command(),
+                Commands::Update => update_command().await,
                 Commands::Uninstall => uninstall_command(),
             };
             if let Err(e) = result {
