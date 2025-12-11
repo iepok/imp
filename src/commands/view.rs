@@ -28,8 +28,6 @@ struct ViewResponse {
 pub async fn view_command() -> Result<()> {
     let token = token_manager::get_valid_token().await?;
     
-    println!("before");
-
     let client = reqwest::Client::new();
     let response = client
         .get("https://api.iepok.com/view")
@@ -37,8 +35,7 @@ pub async fn view_command() -> Result<()> {
         .send()
         .await?;
 
-    println!("after");
-    
+    println!("Status: {}", response.status());
     let body = response.text().await?;
     println!("raw response: {}", body);
 

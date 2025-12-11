@@ -1,8 +1,8 @@
-use crate::auth::{auth, jwk, keyring};
+use crate::auth::{auth, jwk, tokens};
 use anyhow::{bail, Result};
 
 pub async fn validate_and_refresh() -> Result<String> {
-    let mut tokens = keyring::load_tokens()?;
+    let mut tokens = tokens::load_tokens()?;
 
     if jwk::validate_token(&tokens.access_token).await.is_ok() {
         return Ok(tokens.access_token);
@@ -10,7 +10,7 @@ pub async fn validate_and_refresh() -> Result<String> {
 
     tokens = auth::refresh_tokens(&tokens.refresh_token).await?;
 
-    keyring::save_tokens(&tokens)?;
+    tokens::save_tokens(&tokens)?;
 
     if jwk::validate_token(&tokens.access_token).await.is_ok() {
         return Ok(tokens.access_token);

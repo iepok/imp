@@ -4,17 +4,19 @@ use crate::auth::types::Tokens;
 use anyhow::{Context, Result};
 
 pub const REGION: &str = "us-east-1";
-pub const USER_POOL_ID: &str = "us-east-1_DAvkrVxUh";
 pub const CLIENT_ID: &str = "6tlohqsfgoqiehi7q6027a3rl3";
 
-pub async fn send_otp(email: &str) -> Result<String> {
+async fn get_client() -> Client {
     let config = defaults(BehaviorVersion::latest())
         .region(Region::new(REGION))
         .load()
         .await;
-    let client = Client::new(&config);
+    Client::new(&config)
+}
 
-    let response = client
+pub async fn send_otp(email: &str) -> Result<String> {
+    let response = get_client()
+        .await
         .initiate_auth()
         .client_id(CLIENT_ID)
         .auth_flow(AuthFlowType::UserAuth)
@@ -37,13 +39,8 @@ pub async fn verify_otp(
     code: &str,
     session: &str,
 ) -> Result<Tokens> {
-    let config = defaults(BehaviorVersion::latest())
-        .region(Region::new(REGION))
-        .load()
-        .await;
-    let client = Client::new(&config);
-    
-    let response = client
+    let response = get_client()
+        .await
         .respond_to_auth_challenge()
         .client_id(CLIENT_ID)
         .challenge_name(ChallengeNameType::EmailOtp)
@@ -68,21 +65,15 @@ pub async fn verify_otp(
 }
 
 pub async fn refresh_tokens(refresh_token: &str) -> Result<Tokens> {
-    let config = defaults(BehaviorVersion::latest())
-        .region(Region::new(REGION))
-        .load()
-        .await;
-    let client = Client::new(&config);
-
-    let response = client
-        .initiate_auth()
+    let response = get_client()
+        .await
+        .get_tokens_from_refresh_token()
         .client_id(CLIENT_ID)
-        .auth_flow(AuthFlowType::RefreshTokenAuth)
-        .auth_parameters("REFRESH_TOKEN", refresh_token)
+        .refresh_token(refresh_token)
         .send()
         .await
         .context("Failed to refresh tokens")?;
-
+    
     let auth_result = response
         .authentication_result()
         .context("No authentication result")?;
@@ -90,25 +81,33 @@ pub async fn refresh_tokens(refresh_token: &str) -> Result<Tokens> {
     let tokens = Tokens {
         access_token: auth_result.access_token().context("No access token")?.to_string(),
         id_token: auth_result.id_token().context("No ID token")?.to_string(),
-        refresh_token: refresh_token.to_string(), // Keep original
+        refresh_token: auth_result.refresh_token().context("No Refresh Token")?.to_string(),
     };
 
     Ok(tokens)
 }
 
-pub async fn global_sign_out(access_token: &str) -> Result<()> {
-    let config = defaults(BehaviorVersion::latest())
-        .region(Region::new(REGION))
-        .load()
-        .await;
-    let client = Client::new(&config);
+pub async fn logout(refresh_token: &str) -> Result<()> {
+    get_client()
+        .await
+        .revoke_token()
+        .client_id(CLIENT_ID)
+        .token(refresh_token)
+        .send()
+        .await
+        .context("Failed to logout")?;
+    
+    Ok(())
+}
 
-    client
+pub async fn global_logout(access_token: &str) -> Result<()> {
+    get_client()
+        .await
         .global_sign_out()
         .access_token(access_token)
         .send()
         .await
-        .context("Failed to sign out globally")?;
+        .context("Failed to logout globally")?;
 
     Ok(())
 }

@@ -1,4 +1,4 @@
-use crate::auth::{auth, keyring, token_manager};
+use crate::auth::{auth, tokens, token_manager};
 use anyhow::Result;
 use std::io::{self, Write};
 
@@ -26,7 +26,7 @@ pub async fn login_command() -> Result<()> {
     println!("Verifying...");
     let tokens = auth::verify_otp(email, code, &session).await?;
 
-    keyring::save_tokens(&tokens)?;
+    tokens::save_tokens(&tokens)?;
 
     println!("✅ Successfully logged in!");
 

@@ -65,12 +65,6 @@ enum Commands {
     Uninstall,
 }
 
-#[derive(Subcommand)]
-enum PasskeyCmd {
-    /// Delete passkeys from this device
-    Remove,
-}
-
 #[tokio::main]
 async fn main() {
     let args: Vec<_> = env::args().collect();

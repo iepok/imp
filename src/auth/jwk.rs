@@ -1,8 +1,8 @@
 use jsonwebtoken::{decode, decode_header, DecodingKey, Validation, Algorithm};
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize};
 use std::fs;
 use std::path::PathBuf;
-use crate::auth::auth::{REGION, USER_POOL_ID, CLIENT_ID};
+use crate::auth::auth::{CLIENT_ID};
 use anyhow::{Context, Result};
 
 #[derive(Deserialize)]
@@ -19,6 +19,8 @@ struct JwkSet {
     keys: Vec<Jwk>,
 }
 
+const JWKS_URL: &str = "https://auth.iepok.com/.well-known/jwks.json";
+
 fn jwk_cache_path() -> PathBuf {
     dirs::config_dir()
         .unwrap()
@@ -27,12 +29,7 @@ fn jwk_cache_path() -> PathBuf {
 }
 
 pub async fn fetch_jwks() -> Result<String> {
-    let url = format!(
-        "https://cognito-idp.{}.amazonaws.com/{}/.well-known/jwks.json",
-        REGION, USER_POOL_ID
-    );
-
-    let response = reqwest::get(&url).await.context("Failed to fetch JWKs")?;
+    let response = reqwest::get(JWKS_URL).await.context("Failed to fetch JWKs")?;
     let jwks = response.text().await.context("Failed to read JWKs response")?;
 
     let cache_path = jwk_cache_path();
