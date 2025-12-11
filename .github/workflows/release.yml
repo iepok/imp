@@ -49,7 +49,7 @@ jobs:
       - name: Cache cargo
         uses: Swatinem/rust-cache@v2
         with:
-          prefix-key: ${{ matrix.target }}
+          shared-key: ${{ matrix.target }}
 
 
       - name: Install cross-compilation tools
