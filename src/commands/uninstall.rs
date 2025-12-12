@@ -36,7 +36,7 @@ fn handle_uninstall_windows() {
     );
 
     let status = Command::new("powershell")
-        .args(&["-NoProfile", "-Command", &ps_script])
+        .args(["-NoProfile", "-Command", &ps_script])
         .status();
 
     match status {

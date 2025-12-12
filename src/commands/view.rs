@@ -1,4 +1,4 @@
-use anyhow::Result;
+use anyhow::{Result, bail};
 use colored::Colorize;
 use crate::auth::token_manager;
 use serde::Deserialize;
@@ -35,13 +35,11 @@ pub async fn view_command() -> Result<()> {
         .send()
         .await?;
 
-    println!("Status: {}", response.status());
-    let body = response.text().await?;
-    println!("raw response: {}", body);
+    if !response.status().is_success() {
+        bail!("Unauthorized");
+    }
 
-    let view_data: ViewResponse = serde_json::from_str(&body)?;
-
-    // let view_data: ViewResponse = response.json().await?;
+    let view_data: ViewResponse = response.json().await?;
 
     println!("\n{}", "=== Logs ===".bright_green().bold());
     if view_data.logs.is_empty() {
