@@ -27,6 +27,9 @@ struct ViewResponse {
 
 pub async fn view_command() -> Result<()> {
     let token = token_manager::get_valid_token().await?;
+
+    eprintln!("Client Debug: Successfully retrieved token for request.");
+    eprintln!("Client Debug: Token length: {}", token.len());
     
     let client = reqwest::Client::new();
     let response = client
