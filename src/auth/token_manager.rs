@@ -8,7 +8,10 @@ pub async fn validate_and_refresh() -> Result<String> {
         return Ok(tokens.access_token);
     }
 
-    tokens = auth::refresh_tokens(&tokens.refresh_token).await?;
+    tokens = auth::refresh_tokens(
+        &tokens.refresh_token,
+        // &tokens.device_key,
+    ).await?;
 
     tokens::save_tokens(&tokens)?;
 

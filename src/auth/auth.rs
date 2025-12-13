@@ -58,30 +58,44 @@ pub async fn verify_otp(
     let tokens = Tokens {
         access_token: auth_result.access_token().context("No access token")?.to_string(),
         id_token: auth_result.id_token().context("No ID token")?.to_string(),
-        refresh_token: auth_result.refresh_token().context("No refresh token")?.to_string(),
+        refresh_token: auth_result.refresh_token().context("No Refresh Token")?.to_string(),
+        // device_key: auth_result.new_device_metadata().context("No Device metadata")?.device_key().context("No Device key")?.to_string(),
     };
     
     Ok(tokens)
 }
 
-pub async fn refresh_tokens(refresh_token: &str) -> Result<Tokens> {
+pub async fn refresh_tokens(
+    refresh_token: &str,
+    // device_key: &str,
+) -> Result<Tokens> {
     let response = get_client()
         .await
         .get_tokens_from_refresh_token()
         .client_id(CLIENT_ID)
         .refresh_token(refresh_token)
+        // .device_key(device_key)
         .send()
         .await
-        .context("Failed to refresh tokens")?;
-    
+        .map_err(|e| anyhow::anyhow!("Failed to refresh tokens: {:?}", e))?;
+        // .context("Failed to refresh tokens")?;
+
     let auth_result = response
         .authentication_result()
         .context("No authentication result")?;
+
+    // On refresh, new_device_metadata is NOT returned - keep the existing device_key
+    // let new_device_key = auth_result
+    //     .new_device_metadata()
+    //     .and_then(|metadata| metadata.device_key())
+    //     .map(|key| key.to_string())
+    //     .unwrap_or_else(|| device_key.to_string());
 
     let tokens = Tokens {
         access_token: auth_result.access_token().context("No access token")?.to_string(),
         id_token: auth_result.id_token().context("No ID token")?.to_string(),
         refresh_token: auth_result.refresh_token().context("No Refresh Token")?.to_string(),
+        // device_key: new_device_key,
     };
 
     Ok(tokens)
