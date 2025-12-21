@@ -6,7 +6,7 @@ use anyhow::{Context, Result};
 pub const REGION: &str = "us-east-1";
 pub const CLIENT_ID: &str = "6tlohqsfgoqiehi7q6027a3rl3";
 
-async fn get_client() -> Client {
+async fn get_aws_client() -> Client {
     let config = defaults(BehaviorVersion::latest())
         .region(Region::new(REGION))
         .load()
@@ -15,7 +15,7 @@ async fn get_client() -> Client {
 }
 
 pub async fn send_otp(email: &str) -> Result<String> {
-    let response = get_client()
+    let response = get_aws_client()
         .await
         .initiate_auth()
         .client_id(CLIENT_ID)
@@ -39,7 +39,7 @@ pub async fn verify_otp(
     code: &str,
     session: &str,
 ) -> Result<Tokens> {
-    let response = get_client()
+    let response = get_aws_client()
         .await
         .respond_to_auth_challenge()
         .client_id(CLIENT_ID)
@@ -69,7 +69,7 @@ pub async fn refresh_tokens(
     refresh_token: &str,
     // device_key: &str,
 ) -> Result<Tokens> {
-    let response = get_client()
+    let response = get_aws_client()
         .await
         .get_tokens_from_refresh_token()
         .client_id(CLIENT_ID)
@@ -102,7 +102,7 @@ pub async fn refresh_tokens(
 }
 
 pub async fn logout(refresh_token: &str) -> Result<()> {
-    get_client()
+    get_aws_client()
         .await
         .revoke_token()
         .client_id(CLIENT_ID)
@@ -115,7 +115,7 @@ pub async fn logout(refresh_token: &str) -> Result<()> {
 }
 
 pub async fn global_logout(access_token: &str) -> Result<()> {
-    get_client()
+    get_aws_client()
         .await
         .global_sign_out()
         .access_token(access_token)

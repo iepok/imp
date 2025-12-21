@@ -1,10 +1,10 @@
 use colored::Colorize;
-use anyhow::Result;
+use anyhow::{Result, bail};
 use crate::auth::token_manager;
 
 pub async fn log_command(args: &[String]) -> Result<()> {
     if !args[0].contains(' ') {
-        anyhow::bail!("Invalid log command");
+        bail!("Invalid log command");
     }
 
     let token = token_manager::get_valid_token().await?;
@@ -24,7 +24,7 @@ pub async fn log_command(args: &[String]) -> Result<()> {
     if !response.status().is_success() {
         let status = response.status();
         let body = response.text().await?;
-        anyhow::bail!("Failed to log: {} - {}", status, body);
+        bail!("Failed to log: {} - {}", status, body);
     }
 
     println!("{}", "✓ Logged".bright_green());
