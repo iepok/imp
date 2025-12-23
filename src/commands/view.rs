@@ -19,21 +19,22 @@ struct PlanEntry {
     created_at: DateTime<Utc>,
 }
 
-#[derive(Deserialize)]
-struct MeasurementEntry {
-    id: Uuid,
-    log_id: Uuid,
-    subject: String,
-    dimension: Option<String>,
-    measurement: Option<String>,
-    timestamp: DateTime<Utc>,
+#[derive(Serialize, FromRow)]
+pub struct Pok {
+    pub id: Uuid,
+    pub log_id: Uuid,
+    pub topic: String,
+    pub operator: String,
+    pub value: String,
+    pub dimension: Option<String>,
+    pub timestamp: DateTime<Utc>,
 }
 
 #[derive(Deserialize)]
 struct ViewResponse {
     logs: Vec<LogEntry>,
     plans: Vec<PlanEntry>,
-    measurements: Vec<MeasurementEntry>,
+    poks: Vec<MeasurementEntry>,
 }
 
 pub async fn view_command() -> Result<()> {
@@ -69,31 +70,34 @@ pub async fn view_command() -> Result<()> {
         println!("  {}", "No logs yet".dimmed());
     } else {
         for log in view_data.logs {
-            println!("  {} - {}",
+            println!(
+                "  {} - {}",
                 log.created_at.format("%Y-%m-%d %H:%M").to_string().dimmed(),
                 log.text.cyan()
             );
 
-            let log_measurements: Vec<_> = view_data.measurements.iter()
-                .filter(|m| m.log_id == log.id)
+            let log_poks: Vec<_> = view_data.poks
+                .iter()
+                .filter(|p| p.log_id == log.id)
                 .collect();
 
-            if !log_measurements.is_empty() {
-                for measurement in log_measurements {
-                    let dimension_part = measurement.dimension
-                        .as_ref()
-                        .map(|d| format!(" ({})", d))
-                        .unwrap_or_default();
-                    let measurement_text = format!(
-                        "{}{}: {}",
-                        measurement.subject,
-                        dimension_part,
-                        measurement.measurement.as_ref().unwrap_or(&"N/A".to_string())
-                    );
-                    println!("    {}", measurement_text.dimmed());
-                }
+            for pok in log_poks {
+                let dimension_part = pok.dimension
+                    .as_ref()
+                    .map(|d| format!(" ({})", d))
+                    .unwrap_or_default();
+
+                let text = format!(
+                    "{}{}: {}",
+                    pok.topic,
+                    dimension_part,
+                    pok.value
+                );
+
+                println!("    {}", text);
             }
         }
+
     }
 
     println!();
