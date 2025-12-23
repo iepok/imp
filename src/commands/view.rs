@@ -19,8 +19,8 @@ struct PlanEntry {
     created_at: DateTime<Utc>,
 }
 
-#[derive(Serialize, FromRow)]
-pub struct Pok {
+#[derive(Deserialize)]
+pub struct PokEntry {
     pub id: Uuid,
     pub log_id: Uuid,
     pub topic: String,
@@ -34,7 +34,7 @@ pub struct Pok {
 struct ViewResponse {
     logs: Vec<LogEntry>,
     plans: Vec<PlanEntry>,
-    poks: Vec<MeasurementEntry>,
+    poks: Vec<PokEntry>,
 }
 
 pub async fn view_command() -> Result<()> {
