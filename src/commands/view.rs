@@ -69,7 +69,7 @@ pub async fn view_command() -> Result<()> {
     if view_data.logs.is_empty() {
         println!("  {}", "No logs yet".dimmed());
     } else {
-        for log in view_data.logs {
+        for log in view_data.logs.iter().rev() {
             println!(
                 "  {} - {}",
                 log.created_at.format("%Y-%m-%d %H:%M").to_string().dimmed(),
