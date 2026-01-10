@@ -4,7 +4,7 @@ pub mod logout;
 pub mod passkey;
 pub mod devices;
 pub mod plan;
-pub mod analyze;
+pub mod confirm;
 pub mod view;
 pub mod update;
 pub mod uninstall;

@@ -16,7 +16,7 @@ pub async fn log_command(args: &[String]) -> Result<()> {
         .post("https://api.iepok.com/log")
         .bearer_auth(token)
         .json(&serde_json::json!({
-            "text": args[0]
+            "raw_input": args[0]
         }))
         .send()
         .await?;

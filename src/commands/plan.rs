@@ -4,14 +4,15 @@ use crate::auth::token_manager;
 
 pub async fn plan_command(goal: Vec<String>) -> Result<()> {
     let token = token_manager::get_valid_token().await?;
+    let text = format!("{} #plan", goal.join(" "));
 
-    println!("Creating plan: {}", goal.join(" "));
+    println!("{} {}", "Creating plan:".bright_green().bold(), goal.join(" ").cyan());
 
     let client = reqwest::Client::new();
     let response = client
-        .post("https://api.iepok.com/plan")
+        .post("https://api.iepok.com/log")
         .bearer_auth(token)
-        .json(&serde_json::json!({ "text": goal.join(" ") }))
+        .json(&serde_json::json!({ "raw_input": text }))
         .send()
         .await?;
 

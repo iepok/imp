@@ -5,7 +5,7 @@ use std::env;
 use clap::error::ErrorKind;
 use clap::{Parser, Subcommand};
 
-use crate::commands::analyze::analyze_command;
+use crate::commands::confirm::confirm_command;
 use crate::commands::devices::devices_command;
 use crate::commands::log::log_command;
 use crate::commands::login::login_command;
@@ -52,8 +52,8 @@ enum Commands {
         goal: Vec<String>,
     },
     
-    /// Analyze your implementations
-    Analyze,
+    /// Confirm your implementations
+    Confirm,
     
     /// View your history  
     View,
@@ -77,7 +77,7 @@ async fn main() {
                 Commands::Devices => devices_command(),
                 Commands::Status => Ok(()),
                 Commands::Plan { goal } => plan_command(goal).await,
-                Commands::Analyze => analyze_command(),
+                Commands::Confirm => confirm_command().await,
                 Commands::View => view_command().await,
                 Commands::Update => update_command().await,
                 Commands::Uninstall => uninstall_command(),
