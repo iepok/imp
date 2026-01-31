@@ -7,6 +7,10 @@ on:
 
 permissions:
   contents: write
+  id-token: write
+
+env:
+  AWS_REGION: us-east-1
 
 jobs:
   build:
@@ -19,20 +23,20 @@ jobs:
           - os: ubuntu-latest
             target: x86_64-unknown-linux-gnu
             binary_name: imp-linux-x86_64
-            
+
           - os: ubuntu-latest
             target: aarch64-unknown-linux-gnu
             binary_name: imp-linux-arm64
             cross: true
-            
+
           - os: macos-14
             target: x86_64-apple-darwin
             binary_name: imp-macos-x86_64
-            
+
           - os: macos-14
             target: aarch64-apple-darwin
             binary_name: imp-macos-arm64
-          
+
           - os: windows-latest
             target: x86_64-pc-windows-msvc
             binary_name: imp-windows-x86_64.exe
@@ -40,7 +44,45 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-      
+
+      - name: Checkout Infra repo
+        uses: actions/checkout@v4
+        with:
+          repository: iepok/infra
+          path: infra
+          token: ${{ secrets.INFRA_REPO_TOKEN }}
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_wrapper: false
+
+      - name: Fetch Cognito config
+        id: cognito
+        working-directory: infra
+        run: |
+          terraform init
+          echo "user_pool_id=$(terraform output -raw cognito_user_pool_id)" >> $GITHUB_OUTPUT
+          echo "client_id=$(terraform output -raw cognito_client_id)" >> $GITHUB_OUTPUT
+
+      - name: Inject Cognito config (Unix)
+        if: runner.os != 'Windows'
+        run: |
+          sed -i.bak 's/us-east-1_DAvkrVxUh/${{ steps.cognito.outputs.user_pool_id }}/g' src/auth/jwk.rs
+          sed -i.bak 's/6tlohqsfgoqiehi7q6027a3rl3/${{ steps.cognito.outputs.client_id }}/g' src/auth/auth.rs
+
+      - name: Inject Cognito config (Windows)
+        if: runner.os == 'Windows'
+        run: |
+          (Get-Content src/auth/jwk.rs) -replace 'us-east-1_DAvkrVxUh', '${{ steps.cognito.outputs.user_pool_id }}' | Set-Content src/auth/jwk.rs
+          (Get-Content src/auth/auth.rs) -replace '6tlohqsfgoqiehi7q6027a3rl3', '${{ steps.cognito.outputs.client_id }}' | Set-Content src/auth/auth.rs
+
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
         with:
@@ -52,7 +94,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y gcc-aarch64-linux-gnu
           echo "CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER=aarch64-linux-gnu-gcc" >> $GITHUB_ENV
-      
+
       - name: Build release binary
         run: cargo build --release --target ${{ matrix.target }}
 
@@ -62,14 +104,14 @@ jobs:
           mkdir -p dist
           cp target/${{ matrix.target }}/release/imp dist/${{ matrix.binary_name }}
           chmod +x dist/${{ matrix.binary_name }}
-      
+
       - name: Prepare binary (Windows)
         if: runner.os == 'Windows'
         run: |
           New-Item -ItemType Directory -Force -Path dist
           Copy-Item "target/${{ matrix.target }}/release/imp.exe" `
             "dist/${{ matrix.binary_name }}"
-      
+
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
@@ -84,12 +126,12 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-      
+
       - name: Download artifacts
         uses: actions/download-artifact@v4
         with:
           path: artifacts
-      
+
       - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
