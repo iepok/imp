@@ -55,11 +55,7 @@ jobs:
       
       - name: Build release binary
         run: cargo build --release --target ${{ matrix.target }}
-      
-      - name: Strip binary
-        if: runner.os == 'Linux'
-        run: strip target/${{ matrix.target }}/release/imp || true
-      
+
       - name: Prepare binary (Unix)
         if: runner.os != 'Windows'
         run: |

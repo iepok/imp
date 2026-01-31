@@ -1,6 +1,6 @@
 [package]
 name = "imp"
-version = "0.1.33"
+version = "0.1.35"
 edition = "2024"
 
 [dependencies]
@@ -19,3 +19,8 @@ chrono = { version = "0.4.42", features = ["serde"] }
 uuid = { version = "1.19.0", features = ["serde"] }
 # webauthn-rs = "0.5.3"
 # webauthn-authenticator-rs = "0.5.3"
+
+[profile.release]
+lto = true
+codegen-units = 1
+strip = true
