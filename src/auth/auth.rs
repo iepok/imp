@@ -14,9 +14,8 @@ async fn get_aws_client() -> Client {
     Client::new(&config)
 }
 
-pub async fn send_otp(email: &str) -> Result<String> {
-    let response = get_aws_client()
-        .await
+async fn try_initiate_auth(client: &Client, email: &str) -> Result<String> {
+    let response = client
         .initiate_auth()
         .client_id(CLIENT_ID)
         .auth_flow(AuthFlowType::UserAuth)
@@ -30,8 +29,47 @@ pub async fn send_otp(email: &str) -> Result<String> {
         .session()
         .context("No session returned")?
         .to_string();
-    
+
     Ok(session)
+}
+
+async fn sign_up(client: &Client, email: &str) -> Result<()> {
+    use aws_sdk_cognitoidentityprovider::types::AttributeType;
+
+    client
+        .sign_up()
+        .client_id(CLIENT_ID)
+        .username(email)
+        .password(&format!("Temp{}!", uuid::Uuid::new_v4()))
+        .user_attributes(
+            AttributeType::builder()
+                .name("email")
+                .value(email)
+                .build()
+                .context("Failed to build email attribute")?
+        )
+        .send()
+        .await
+        .map_err(|e| anyhow::anyhow!("Failed to sign up: {:?}", e))?;
+
+    Ok(())
+}
+
+pub async fn send_otp(email: &str) -> Result<String> {
+    let client = get_aws_client().await;
+
+    match try_initiate_auth(&client, email).await {
+        Ok(session) => Ok(session),
+        Err(e) => {
+            let error_str = format!("{:?}", e);
+            if error_str.contains("UserNotFoundException") {
+                sign_up(&client, email).await?;
+                try_initiate_auth(&client, email).await
+            } else {
+                Err(e)
+            }
+        }
+    }
 }
 
 pub async fn verify_otp(
