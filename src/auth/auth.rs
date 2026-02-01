@@ -94,6 +94,7 @@ pub async fn confirm_signup_and_auth(email: &str, code: &str, session: &str) -> 
         .initiate_auth()
         .client_id(CLIENT_ID)
         .auth_flow(AuthFlowType::UserAuth)
+        .auth_parameters("USERNAME", email)
         .session(auth_session)
         .send()
         .await
