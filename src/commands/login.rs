@@ -29,6 +29,7 @@ pub async fn login_command() -> Result<()> {
         OtpResult::NeedsConfirmation { session } => {
             auth::confirm_signup_and_auth(email, code, &session).await?
         }
+        OtpResult::UserNotFound => unreachable!("send_otp handles signup"),
     };
 
     tokens::save_tokens(&tokens)?;

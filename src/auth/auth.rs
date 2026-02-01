@@ -9,6 +9,7 @@ pub const CLIENT_ID: &str = "6tlohqsfgoqiehi7q6027a3rl3";
 pub enum OtpResult {
     Session(String),
     NeedsConfirmation { session: String },
+    UserNotFound,
 }
 
 async fn get_aws_client() -> Client {
@@ -19,7 +20,7 @@ async fn get_aws_client() -> Client {
     Client::new(&config)
 }
 
-async fn try_initiate_auth(client: &Client, email: &str) -> Result<String> {
+async fn try_initiate_auth(client: &Client, email: &str) -> Result<OtpResult> {
     let response = client
         .initiate_auth()
         .client_id(CLIENT_ID)
@@ -30,12 +31,17 @@ async fn try_initiate_auth(client: &Client, email: &str) -> Result<String> {
         .await
         .map_err(|e| anyhow::anyhow!("Failed to send OTP: {:?}", e))?;
 
+    // SELECT_CHALLENGE means user doesn't exist (EMAIL_OTP not available)
+    if response.challenge_name() == Some(&ChallengeNameType::SelectChallenge) {
+        return Ok(OtpResult::UserNotFound);
+    }
+
     let session = response
         .session()
         .context("No session returned")?
         .to_string();
 
-    Ok(session)
+    Ok(OtpResult::Session(session))
 }
 
 async fn sign_up(client: &Client, email: &str) -> Result<String> {
@@ -67,17 +73,13 @@ async fn sign_up(client: &Client, email: &str) -> Result<String> {
 pub async fn send_otp(email: &str) -> Result<OtpResult> {
     let client = get_aws_client().await;
 
-    match try_initiate_auth(&client, email).await {
-        Ok(session) => Ok(OtpResult::Session(session)),
-        Err(e) => {
-            let error_str = format!("{:?}", e);
-            if error_str.contains("UserNotFoundException") {
-                let session = sign_up(&client, email).await?;
-                Ok(OtpResult::NeedsConfirmation { session })
-            } else {
-                Err(e)
-            }
+    match try_initiate_auth(&client, email).await? {
+        OtpResult::Session(session) => Ok(OtpResult::Session(session)),
+        OtpResult::UserNotFound => {
+            let session = sign_up(&client, email).await?;
+            Ok(OtpResult::NeedsConfirmation { session })
         }
+        other => Ok(other),
     }
 }
 
