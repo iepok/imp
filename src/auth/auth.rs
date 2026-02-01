@@ -40,7 +40,6 @@ async fn sign_up(client: &Client, email: &str) -> Result<()> {
         .sign_up()
         .client_id(CLIENT_ID)
         .username(email)
-        .password(&format!("Temp{}!", uuid::Uuid::new_v4()))
         .user_attributes(
             AttributeType::builder()
                 .name("email")
