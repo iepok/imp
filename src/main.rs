@@ -55,8 +55,12 @@ enum Commands {
     /// Confirm your implementations
     Confirm,
     
-    /// View your history  
-    View,
+    /// View your history
+    View {
+        /// What to view: summary (default), occurrences
+        #[arg(default_value = "summary")]
+        what: String,
+    },
     
     /// Update imp
     Update,
@@ -78,7 +82,7 @@ async fn main() {
                 Commands::Status => Ok(()),
                 Commands::Plan { goal } => plan_command(goal).await,
                 Commands::Confirm => confirm_command().await,
-                Commands::View => view_command().await,
+                Commands::View { what } => view_command(&what).await,
                 Commands::Update => update_command().await,
                 Commands::Uninstall => uninstall_command(),
             };
