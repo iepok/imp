@@ -6,6 +6,11 @@ use anyhow::{Context, Result};
 pub const REGION: &str = "us-east-1";
 pub const CLIENT_ID: &str = "6tlohqsfgoqiehi7q6027a3rl3";
 
+pub enum OtpResult {
+    Session(String),
+    NeedsConfirmation { session: String },
+}
+
 async fn get_aws_client() -> Client {
     let config = defaults(BehaviorVersion::latest())
         .region(Region::new(REGION))
@@ -33,10 +38,10 @@ async fn try_initiate_auth(client: &Client, email: &str) -> Result<String> {
     Ok(session)
 }
 
-async fn sign_up(client: &Client, email: &str) -> Result<()> {
+async fn sign_up(client: &Client, email: &str) -> Result<String> {
     use aws_sdk_cognitoidentityprovider::types::AttributeType;
 
-    client
+    let response = client
         .sign_up()
         .client_id(CLIENT_ID)
         .username(email)
@@ -51,24 +56,67 @@ async fn sign_up(client: &Client, email: &str) -> Result<()> {
         .await
         .map_err(|e| anyhow::anyhow!("Failed to sign up: {:?}", e))?;
 
-    Ok(())
+    let session = response
+        .session()
+        .context("No session returned from signup")?
+        .to_string();
+
+    Ok(session)
 }
 
-pub async fn send_otp(email: &str) -> Result<String> {
+pub async fn send_otp(email: &str) -> Result<OtpResult> {
     let client = get_aws_client().await;
 
     match try_initiate_auth(&client, email).await {
-        Ok(session) => Ok(session),
+        Ok(session) => Ok(OtpResult::Session(session)),
         Err(e) => {
             let error_str = format!("{:?}", e);
             if error_str.contains("UserNotFoundException") {
-                sign_up(&client, email).await?;
-                try_initiate_auth(&client, email).await
+                let session = sign_up(&client, email).await?;
+                Ok(OtpResult::NeedsConfirmation { session })
             } else {
                 Err(e)
             }
         }
     }
+}
+
+pub async fn confirm_signup_and_auth(email: &str, code: &str, session: &str) -> Result<Tokens> {
+    let client = get_aws_client().await;
+
+    let response = client
+        .confirm_sign_up()
+        .client_id(CLIENT_ID)
+        .username(email)
+        .confirmation_code(code)
+        .session(session)
+        .send()
+        .await
+        .map_err(|e| anyhow::anyhow!("Failed to confirm signup: {:?}", e))?;
+
+    let auth_session = response
+        .session()
+        .context("No session returned from confirmation")?;
+
+    // Continue auth with the session from confirmation
+    let auth_response = client
+        .initiate_auth()
+        .client_id(CLIENT_ID)
+        .auth_flow(AuthFlowType::UserAuth)
+        .session(auth_session)
+        .send()
+        .await
+        .map_err(|e| anyhow::anyhow!("Failed to continue auth: {:?}", e))?;
+
+    let auth_result = auth_response
+        .authentication_result()
+        .context("No authentication result")?;
+
+    Ok(Tokens {
+        access_token: auth_result.access_token().context("No access token")?.to_string(),
+        id_token: auth_result.id_token().context("No ID token")?.to_string(),
+        refresh_token: auth_result.refresh_token().context("No refresh token")?.to_string(),
+    })
 }
 
 pub async fn verify_otp(
